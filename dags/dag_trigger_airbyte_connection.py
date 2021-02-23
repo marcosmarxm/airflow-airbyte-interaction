@@ -12,5 +12,5 @@ with DAG(dag_id='trigger_airbyte_connection',
         task_id='sync_money_json',
         airbyte_conn_id='airbyte_local',
         source_name='Money',
-        dest_name='output'
+        dest_name='JSON destination'
     )
