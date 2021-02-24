@@ -15,9 +15,12 @@ with DAG(dag_id='trigger_airbyte_sync_job',
         source_name='Money',
         dest_name='JSON destination'
     )
-    
-    another_task = DummyOperator(
-        task_id='downstream_pipeline'
-    )
 
-    money_json >> another_task
+    split_train_test = DummyOperator(task_id='split_train_test')
+    
+    create_cluster = DummyOperator(task_id='downstream_pipeline')
+
+    ml_model_update = DummyOperator(task_id='ml_model')
+
+    money_json >> split_train_test >> ml_model_update
+    create_cluster >> ml_model_update
