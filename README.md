@@ -15,6 +15,7 @@ cd airflow-airbyte-interaction/airbyte
 docker-compose up -d
 ```
 
+To start Airflow run:
 ```
 cd airflow-airbyte-interaction
 docker-compose up -d --force-recreate --remove-orphans
