@@ -4,105 +4,71 @@ from time import sleep
 from airflow.hooks.base import BaseHook
 from airflow.providers.http.hooks.http import HttpHook
 
+class AirbyteJobController:
+    """Airbyte job status"""
+    RUNNING = 'running'
+    COMPLETED = 'completed'
+    PENDING = 'pending'
+    FAILED = 'failed'
+
 
 class AirbyteHook(BaseHook):
-
-    API_URL = 'http://172.26.0.1:8001/api/v1'
-    POKE_TIME_INTERVAL = 1
-    WAIT_TIME_JOB_START = 5
-    allowed_resource_types = [
-        'destinations',
-        'sources',
-        'connections'
-    ]
-    status_running = ['running'] # ['running', 'pending']
-    status_completed = ['succeeded']
-
-        # Isso aqui deve lidar em criar uma conexão segura do Airflow
-        # usando o que foi criado no UI.
-        # tentar subir o Airbyte com user/pass
+    """Hook for Airbyte API"""
+    
     def __init__(self, airbyte_conn_id: str) -> None:
         super().__init__()
         self.conn_id = airbyte_conn_id
         self.api_hook = HttpHook(http_conn_id=self.conn_id)
 
-    def run_job(self, source_name, dest_name):
-
-        workspace_id = self.get_workspace_id()
-        source_id = self.get_source_id(workspace_id, source_name)
-        dest_id = self.get_dest_id(workspace_id, dest_name)
-        connection_id = self.get_connection_id(workspace_id, source_id, dest_id)
-
-        job_response = self.trigger_sync_job(connection_id)
-        job_id = job_response.get('job').get('id')
-        sleep(self.WAIT_TIME_JOB_START)
-        job_status = self.get_job_status(job_id)
-
-        while job_status in self.status_running:
-            sleep(self.POKE_TIME_INTERVAL)
-            job_status = self.get_job_status(job_id)
-        
-        if job_status in self.status_completed:
-            self.log.info("Job {self.job_id} is finished sync")
-        else:
-            raise RuntimeError("Airbyte job had some problem")
-
-    def _get_response(self, endpoint, payload):
-        self.log.info(f'Airbyte API {endpoint}')
-        # r = self.api_hook.run(
-        #     endpoint='/api/v1' + endpoint,
-        #     data=payload,
-        #     headers={'accept': 'application/json'}
-        # )
-        #poderia alterar para ter raise para cada error 400, 300...
-        r = requests.post(
-            f'{self.API_URL}{endpoint}', 
-            json=payload
+    def submit_job(self, connection_id) -> dict:
+        """
+        Submits a job to a Airbyte server.
+        :param connection_id: Required. The ConnectionId of the Airbyte Connection.
+        :type connectiond_id: str
+        """
+        return self.api_hook.run(
+            endpoint='/api/v1/connections/sync,
+            data={'connectionId': connnection_id},
+            headers={'accept': 'application/json'}
         )
-        print(r)
-        if r.status_code != HTTPStatus.OK:
-            raise Exception(f"API Response: {r.status_code}")
-        return r.json()
 
-    def trigger_sync_job(self, connection_id):
-        endpoint = '/connections/sync'
-        payload = dict(connectionId = connection_id)
-        return self._get_response(endpoint, payload)
+    def wait_for_job(
+        self, job_id: str, wait_time: int = 3, timeout: Optional[int] = None
+    ) -> None:
+        """
+        Helper method which polls a job to check if it finishes.
+        :param job_id: Id of the Airbyte job
+        :type job_id: str
+        :param wait_time: Number of seconds between checks
+        :type wait_time: int
+        :param timeout: How many seconds wait for job to be ready. Used only if ``asynchronous`` is False
+        :type timeout: int
+        """
+        state = None
+        start = time.monotonic()
+        while state not in (AirbyteJobStatus.ERROR, AirbyteJobStatus.DONE, AirbyteJobStatus.CANCELLED):
+            if timeout and start + timeout < time.monotonic():
+                raise AirflowException(f"Timeout: dataproc job {job_id} is not ready after {timeout}s")
+            time.sleep(wait_time)
+            try:
+                job = self.get_job(job_id=job_id)
+                state = job.get('job').get('status')
+            except ServerError as err:
+                self.log.info("Retrying. Airbyte API returned server error when waiting for job: %s", err)
 
-    def get_job_status(self, job_id):
-        endpoint = '/jobs/get'
-        payload = dict(id = job_id)
-        return self._get_response(endpoint, payload).get('job').get('status')
+        if state == AirbyteJobStatus.ERROR:
+            raise AirflowException(f'Job failed:\n{job}')
+        if state == AirbyteJobStatus.CANCELLED:
+            raise AirflowException(f'Job was cancelled:\n{job}')
 
-    def get_workspace_id(self):
-        endpoint = '/workspaces/get_by_slug'
-        payload = dict(slug = "string")
-        return self._get_response(endpoint, payload).get('workspaceId')
-
-    def _get_resource_info(self, resource_type, workspace_id):
-        if resource_type not in self.allowed_resource_types:
-            raise ValueError(f"Resource {resource_type} not recognized")
-        endpoint = f'/{resource_type}/list'
-        payload = dict(workspaceId = workspace_id)
-        return self._get_response(endpoint, payload).get(resource_type)
-    
-    def _get_resource_id(self, data, resource_type, resource_name):
-        for d in data:
-            if d.get('name') == resource_name:
-                return d.get(resource_type)
-        raise ValueError(f"Resource {resource_type} with name {resource_name} not found")
-
-    def get_source_id(self, workspace_id, source_name):
-        data = self._get_resource_info('sources', workspace_id)
-        return self._get_resource_id(data, 'sourceId', source_name)
-
-    def get_dest_id(self, workspace_id, dest_name):
-        data = self._get_resource_info('destinations', workspace_id)
-        return self._get_resource_id(data, 'destinationId', dest_name)
-
-    def get_connection_id(self, workspace_id, source_id, dest_id):
-        data = self._get_resource_info('connections', workspace_id)
-        for d in data:
-            if (d.get('sourceId') == source_id) and (d.get('destinationId') == dest_id):
-                return d.get('connectionId')
-        raise ValueError("Airbyte connection not found.")
+    def get_job(self, job_id: str) -> dict:
+        """
+        Gets the resource representation for a job in Airbyte.
+        :param job_id: Id of the Airbyte job
+        :type job_id: str
+        """
+        return self.api_hook.run(
+            endpoint='/api/v1/job/get,
+            data={'id': job_id},
+            headers={'accept': 'application/json'}
+        )
