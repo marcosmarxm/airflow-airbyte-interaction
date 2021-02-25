@@ -5,8 +5,17 @@ from airflow.utils.decorators import apply_defaults
 from airflow.providers.http.hooks.http import HttpHook
 
 class AirbyteTriggerSyncOperator(BaseOperator):
-    """Operator for Airbyte API"""
+    """
+    Submit a job to an Airbyte server
     
+    :param airbyte_conn_id: Required. The Airflow connection to communicate
+    :type airbyte_conn_id: str
+    :param connection_id: Required. The Airbyte ConnectionId between Source and Destination
+    :type connection_id: str
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete. 
+    :type timeout: float
+    """
+
     @apply_defaults
     def __init__(
             self,
