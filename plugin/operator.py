@@ -35,7 +35,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         job_object = hook.submit_job(connection_id=self.connection_id)
         job_id = job_object.get('job').get('id')
 
-        hook.wait_for_job(job_id=job_id, self.timeout)
+        hook.wait_for_job(job_id=job_id, timeout=self.timeout)
         self.log.info('Job %s completed successfully', job_id)
         self.job_id = job_id
         return self.job_id

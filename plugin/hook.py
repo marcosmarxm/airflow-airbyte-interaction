@@ -4,6 +4,7 @@ from time import sleep
 from airflow.hooks.base import BaseHook
 from airflow.providers.http.hooks.http import HttpHook
 
+
 class AirbyteJobController:
     """Airbyte job status"""
     RUNNING = 'running'
@@ -48,7 +49,7 @@ class AirbyteHook(BaseHook):
         start = time.monotonic()
         while state not in (AirbyteJobStatus.ERROR, AirbyteJobStatus.DONE, AirbyteJobStatus.CANCELLED):
             if timeout and start + timeout < time.monotonic():
-                raise AirflowException(f"Timeout: dataproc job {job_id} is not ready after {timeout}s")
+                raise AirflowException(f"Timeout: Airbyte job {job_id} is not ready after {timeout}s")
             time.sleep(wait_time)
             try:
                 job = self.get_job(job_id=job_id)
