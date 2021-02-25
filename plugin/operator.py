@@ -1,8 +1,26 @@
-import threading
-import time
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from typing import Optional
+
 from airflow.models.baseoperator import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.providers.http.hooks.http import HttpHook
+
+from .hook import AirbyteHook
 
 class AirbyteTriggerSyncOperator(BaseOperator):
     """
@@ -21,7 +39,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
             self,
             airbyte_conn_id: str,
             connection_id: str,
-            timeout: int = 3600,
+            timeout: Optional[int] = 3600,
             **kwargs) -> None:
         super().__init__(**kwargs)
         self.airbyte_conn_id = airbyte_conn_id
@@ -30,10 +48,10 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         
     def execute(self, context):
         """Create Airbyte Job and wait to finish"""
-        hook = HttpHook(airbyte_conn_id=self.airbyte_conn_id)
+        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id)
 
         job_object = hook.submit_job(connection_id=self.connection_id)
-        job_id = job_object.get('job').get('id')
+        job_id = job_object.json().get('job').get('id')
 
         hook.wait_for_job(job_id=job_id, timeout=self.timeout)
         self.log.info('Job %s completed successfully', job_id)
