@@ -14,7 +14,7 @@ class AirbyteJobController:
 
 class AirbyteHook(BaseHook):
     """Hook for Airbyte API"""
-    
+
     def __init__(self, airbyte_conn_id: str) -> None:
         super().__init__()
         self.conn_id = airbyte_conn_id

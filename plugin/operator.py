@@ -50,13 +50,3 @@ class AirbyteTriggerSyncOperator(BaseOperator):
             endpoint='/api/v1/jobs/get',
             data={'id': self.job_id}
         )
-    
-
-
-
-
-        
-
-   
-
-        
