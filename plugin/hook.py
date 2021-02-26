@@ -26,12 +26,12 @@ from airflow.providers.http.hooks.http import HttpHook
 
 class AirbyteJobController:
     """Airbyte job status"""
-    RUNNING = 'running'
-    SUCCEEDED = 'succeeded'
-    CANCELLED = 'canceled'
-    PENDING = 'pending'
-    FAILED = 'failed'
-    ERROR = 'error'
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    CANCELLED = "canceled"
+    PENDING = "pending"
+    FAILED = "failed"
+    ERROR = "error"
 
 
 class AirbyteHook(BaseHook, AirbyteJobController):
@@ -40,7 +40,7 @@ class AirbyteHook(BaseHook, AirbyteJobController):
     def __init__(self, airbyte_conn_id: str) -> None:
         super().__init__()
         self.conn_id = airbyte_conn_id
-        self.api_hook = HttpHook(http_conn_id=self.conn_id, method='POST')
+        self.api_hook = HttpHook(http_conn_id=self.conn_id, method="POST")
 
     def wait_for_job(
         self, job_id: str, wait_time: int = 3, timeout: Optional[int] = None
@@ -62,14 +62,14 @@ class AirbyteHook(BaseHook, AirbyteJobController):
             time.sleep(wait_time)
             try:
                 job = self.get_job(job_id=job_id)
-                state = job.json().get('job').get('status')
+                state = job.json().get("job").get("status")
             except AirflowException as err:
                 self.log.info("Retrying. Airbyte API returned server error when waiting for job: %s", err)
 
         if state == self.ERROR:
-            raise AirflowException(f'Job failed:\n{job}')
+            raise AirflowException(f"Job failed:\n{job}")
         if state == self.CANCELLED:
-            raise AirflowException(f'Job was cancelled:\n{job}')
+            raise AirflowException(f"Job was cancelled:\n{job}")
 
     def submit_job(self, connection_id) -> dict:
         """
@@ -78,9 +78,9 @@ class AirbyteHook(BaseHook, AirbyteJobController):
         :type connectiond_id: str
         """
         return self.api_hook.run(
-            endpoint='api/v1/connections/sync',
-            json={'connectionId': connection_id},
-            headers={'accept': 'application/json'}
+            endpoint="api/v1/connections/sync",
+            json={"connectionId": connection_id},
+            headers={"accept": "application/json"}
         )
 
     def get_job(self, job_id: str) -> dict:
@@ -90,7 +90,7 @@ class AirbyteHook(BaseHook, AirbyteJobController):
         :type job_id: str
         """
         return self.api_hook.run(
-            endpoint='api/v1/jobs/get',
-            json={'id': job_id},
-            headers={'accept': 'application/json'}
+            endpoint="api/v1/jobs/get",
+            json={"id": job_id},
+            headers={"accept": "application/json"}
         )

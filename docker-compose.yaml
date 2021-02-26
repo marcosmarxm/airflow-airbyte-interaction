@@ -21,6 +21,7 @@ services:
       volumes:
         - ./dags:/opt/airflow/dags
         - ./plugin:/opt/airflow/dags/plugin
+        - ./tests:/opt/airflow/dags/tests
       environment: 
         - AIRFLOW_HOME=/opt/airflow
         - AIRFLOW__CORE__FERNET_KEY=${FERNET_KEY}
