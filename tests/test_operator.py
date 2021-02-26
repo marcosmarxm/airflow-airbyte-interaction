@@ -18,18 +18,10 @@
 # under the License.
 #
 import unittest
-import pytest
-from unittest import mock
-import json
-import unittest
-from unittest import mock
-
+import time
 from time import sleep
-
-import pytest
-import requests
+from unittest import mock
 import requests_mock
-import tenacity
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -45,6 +37,7 @@ AIRBYTE_STRING = "airflow.providers.airbyte.operators.{}"
 AIRBYTE_CONN_ID = 'test_airbyte_conn_id'
 AIRBYTE_CONNECTION = 'test_airbyte_connection'
 JOB_ID = 1
+TIMEOUT = 3600
 
 
 def get_airbyte_connection(unused_conn_id=None):
@@ -54,24 +47,26 @@ def get_airbyte_connection(unused_conn_id=None):
 class TestAirbyteTriggerSyncOp(unittest.TestCase):
     """Test get, post and raise_for_status"""
 
-    @mock.patch('plugin.hook.AirbyteHook')
-    @requests_mock.mock()
     @mock.patch('plugin.hook.AirbyteHook.submit_job')
-    def test_execute(self, mock_hook, m, mock_submit_job):
-        mock_hook.return_value.wait_for_job.return_value = None
-        mock_submit_job.json.return_value = {'job': {'status': 'succeed'}} 
+    @mock.patch('plugin.hook.AirbyteHook.wait_for_job', return_value=None)
+    def test_execute(self, mock_wait_for_job, mock_submit_job):
 
-        m.post('http://test:8001/api/v1/connections/sync', status_code=200, text='{"job":{"id": 1}}', reason='OK')
-        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airbyte_connection):
-        
-            op = AirbyteTriggerSyncOperator(
+
+        mock_submit_job.return_value = mock.Mock(**{
+            'json.return_value': {'job': {'id': JOB_ID}}}
+        )
+        op = AirbyteTriggerSyncOperator(
                 task_id='test_Airbyte_op',
                 airbyte_conn_id=AIRBYTE_CONN_ID,
                 connection_id=AIRBYTE_CONNECTION
             )
-            op.execute({})
-            mock_hook.return_value.submib_job.assert_called_once_with(
-                connection_id=AIRBYTE_CONNECTION
-            )
+        op.execute({})
+    
+        mock_submit_job.assert_called_once_with(
+            connection_id=AIRBYTE_CONNECTION
+        )
 
-
+        mock_wait_for_job.assert_called_once_with(
+            job_id=JOB_ID,
+            timeout=TIMEOUT
+        )
