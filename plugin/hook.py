@@ -19,7 +19,6 @@ from typing import Optional
 
 import time
 
-from airflow.hooks.base import BaseHook
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 
@@ -34,13 +33,12 @@ class AirbyteJobController:
     ERROR = "error"
 
 
-class AirbyteHook(BaseHook, AirbyteJobController):
+class AirbyteHook(HttpHook, AirbyteJobController):
     """Hook for Airbyte API"""
 
     def __init__(self, airbyte_conn_id: str) -> None:
         super().__init__()
         self.conn_id = airbyte_conn_id
-        self.api_hook = HttpHook(http_conn_id=self.conn_id, method="POST")
 
     def wait_for_job(
         self, job_id: str, wait_time: int = 3, timeout: Optional[int] = None
@@ -77,7 +75,7 @@ class AirbyteHook(BaseHook, AirbyteJobController):
         :param connection_id: Required. The ConnectionId of the Airbyte Connection.
         :type connectiond_id: str
         """
-        return self.api_hook.run(
+        return self.run(
             endpoint="api/v1/connections/sync",
             json={"connectionId": connection_id},
             headers={"accept": "application/json"}
@@ -89,7 +87,7 @@ class AirbyteHook(BaseHook, AirbyteJobController):
         :param job_id: Id of the Airbyte job
         :type job_id: str
         """
-        return self.api_hook.run(
+        return self.run(
             endpoint="api/v1/jobs/get",
             json={"id": job_id},
             headers={"accept": "application/json"}
