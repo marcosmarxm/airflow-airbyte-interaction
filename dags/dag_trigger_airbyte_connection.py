@@ -13,7 +13,7 @@ with DAG(dag_id='airbyte_sync_job',
     source_destination = AirbyteTriggerSyncOperator(
         task_id='airbyte_sync_source_dest',
         airbyte_conn_id='airbyte_conn_example',
-        connection_id='15bc3800-82e4-48c3-a32d-6206973f28'
+        connection_id='15bc3800-82e4-48c3-a32d-620661273f28'
     )
 
     split_train_test = DummyOperator(task_id='split_train_test')

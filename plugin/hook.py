@@ -37,14 +37,14 @@ class AirbyteHook(HttpHook, AirbyteJobController):
     """Hook for Airbyte API"""
 
     def __init__(self, airbyte_conn_id: str) -> None:
-        super().__init__()
-        self.conn_id = airbyte_conn_id
+        super().__init__(http_conn_id=airbyte_conn_id)
 
     def wait_for_job(
         self, job_id: str, wait_time: int = 3, timeout: Optional[int] = None
     ) -> None:
         """
         Helper method which polls a job to check if it finishes.
+
         :param job_id: Id of the Airbyte job
         :type job_id: str
         :param wait_time: Number of seconds between checks
@@ -69,9 +69,10 @@ class AirbyteHook(HttpHook, AirbyteJobController):
         if state == self.CANCELLED:
             raise AirflowException(f"Job was cancelled:\n{job}")
 
-    def submit_job(self, connection_id) -> dict:
+    def submit_job(self, connection_id: str) -> dict:
         """
         Submits a job to a Airbyte server.
+
         :param connection_id: Required. The ConnectionId of the Airbyte Connection.
         :type connectiond_id: str
         """
@@ -84,6 +85,7 @@ class AirbyteHook(HttpHook, AirbyteJobController):
     def get_job(self, job_id: str) -> dict:
         """
         Gets the resource representation for a job in Airbyte.
+
         :param job_id: Id of the Airbyte job
         :type job_id: str
         """

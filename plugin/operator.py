@@ -24,11 +24,12 @@ from .hook import AirbyteHook
 
 class AirbyteTriggerSyncOperator(BaseOperator):
     """
-    Submit a job to an Airbyte server
-    
-    :param airbyte_conn_id: Required. The Airflow connection to communicate
+    This operator allows you to submit a job to an Airbyte server to run a integration
+    process between your source and destination.
+        
+    :param airbyte_conn_id: Required. The name of the Airbyte connection to use
     :type airbyte_conn_id: str
-    :param connection_id: Required. The Airbyte ConnectionId between Source and Destination
+    :param connection_id: Required. The Airbyte ConnectionId UUID between a source and destination
     :type connection_id: str
     :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete. 
     :type timeout: float
@@ -36,22 +37,21 @@ class AirbyteTriggerSyncOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
-            airbyte_conn_id: str,
-            connection_id: str,
-            timeout: Optional[int] = 3600,
-            **kwargs) -> None:
+        self,
+        airbyte_conn_id: str,
+        connection_id: str,
+        timeout: Optional[int] = 3600,
+        **kwargs
+    ) -> None:
         super().__init__(**kwargs)
         self.airbyte_conn_id = airbyte_conn_id
         self.connection_id = connection_id
         self.timeout = timeout
         
-    def execute(self, context):
+    def execute(self, context) -> None:
         """Create Airbyte Job and wait to finish"""
         hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id)
         job_object = hook.submit_job(connection_id=self.connection_id)
         job_id = job_object.json().get('job').get('id')
         hook.wait_for_job(job_id=job_id, timeout=self.timeout)
         self.log.info('Job %s completed successfully', job_id)
-        self.job_id = job_id
-        return self.job_id
